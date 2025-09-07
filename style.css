@@ -68,3 +68,10 @@ button:hover {
   font-size: 14px;
   margin-top: 10px;
 }
+
+.logo {
+  display: block;
+  margin: 0 auto 20px;
+  width: 120px; /* ปรับตามขนาดโลโก้ */
+  height: auto;
+}
