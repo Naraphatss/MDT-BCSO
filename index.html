@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Law Enforcement - Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-container">
+    <h1>Law Enforcement</h1>
+    <p class="subtitle">ระบบเข้าสู่ระบบสำหรับเจ้าหน้าที่</p>
+    <form id="loginForm">
+      <div class="input-group">
+        <label for="username">ชื่อผู้ใช้</label>
+        <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้" required>
+      </div>
+      <div class="input-group">
+        <label for="password">รหัสผ่าน</label>
+        <input type="password" id="password" placeholder="กรอกรหัสผ่าน" required>
+      </div>
+      <button type="submit">เข้าสู่ระบบ</button>
+      <p id="error" class="error"></p>
+    </form>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

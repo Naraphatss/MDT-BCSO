@@ -1,0 +1,134 @@
+<div class="login-container" style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background-color: #f9f9f9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center;">
+
+  <!-- Logo -->
+  <img src="https://cdn-icons-png.flaticon.com/512/1055/1055646.png" alt="Computer Logo" style="width: 80px; margin-bottom: 10px;">
+
+  <h1 style="color: #333;">ยินดีต้อนรับเจ้าหน้าที่</h1>
+  
+  <p id="info" style="font-size: 16px; color: #555;"></p>
+  <p id="time" style="font-size: 14px; color: #777;"></p>
+
+  <div style="margin: 20px 0;">
+    <button id="startDuty" style="padding: 10px 20px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer;">🚨 เริ่มงาน</button>
+    <button id="endDuty" disabled style="padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">✅ ออกเวร</button>
+  </div>
+
+  <h2 style="color: #333;">📜 Duty Logs (Realtime)</h2>
+  <ul id="logs" style="list-style: none; padding: 0; text-align: left; max-height: 300px; overflow-y: auto;"></ul>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyATTiyInUWaiPuGVj7DXzd8SLhJOGmbiq4",
+    authDomain: "data-service-467404.firebaseapp.com",
+    databaseURL: "https://data-service-467404-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "data-service-467404",
+    storageBucket: "data-service-467404.appspot.com",
+    messagingSenderId: "860747048785",
+    appId: "1:860747048785:web:dd47ad5daa9595027dd570",
+    measurementId: "G-1X08RZGGEF"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const name = localStorage.getItem("name");
+  const rank = localStorage.getItem("rank");
+  const officerId = localStorage.getItem("officerId");
+  const loginTime = localStorage.getItem("loginTime");
+
+  if(name && officerId) {
+    document.getElementById("info").textContent = `${rank} ${name} | เลขประจำตัว: ${officerId}`;
+    document.getElementById("time").textContent = `เวลาเข้าใช้งาน: ${loginTime}`;
+  }
+
+  const logsEl = document.getElementById("logs");
+  const startBtn = document.getElementById("startDuty");
+  const endBtn = document.getElementById("endDuty");
+
+  let currentSessionKey = null; 
+  let isOnDuty = false;
+
+  function startDuty() {
+    if (isOnDuty) {
+      alert("คุณเริ่มงานไปแล้ว กรุณาออกเวรก่อน");
+      return;
+    }
+
+    const startTime = new Date().toISOString();
+    const logData = {
+      officerId,
+      name,
+      rank,
+      action: "เริ่มปฏิบัติหน้าที่ 🚨",
+      startTime: startTime
+    };
+    const ref = db.ref("roster-logs").push(logData);
+    currentSessionKey = ref.key;
+    isOnDuty = true;
+
+    startBtn.disabled = true;
+    endBtn.disabled = false;
+  }
+
+  function endDuty() {
+    if (!isOnDuty || !currentSessionKey) {
+      alert("ยังไม่ได้เริ่มงาน");
+      return;
+    }
+
+    const endTime = new Date().toISOString();
+    db.ref("roster-logs/" + currentSessionKey).once("value", snapshot => {
+      const data = snapshot.val();
+      if (data && data.startTime) {
+        const durationMs = new Date(endTime) - new Date(data.startTime);
+
+        const hours = Math.floor(durationMs / 1000 / 60 / 60);
+        const minutes = Math.floor((durationMs / 1000 / 60) % 60);
+        const seconds = Math.floor((durationMs / 1000) % 60);
+
+        const durationStr = `${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที`;
+
+        db.ref("roster-logs/" + currentSessionKey).update({
+          action: "ออกเวร ✅",
+          endTime: endTime,
+          duration: durationStr
+        });
+
+        currentSessionKey = null;
+        isOnDuty = false;
+
+        startBtn.disabled = false;
+        endBtn.disabled = true;
+      }
+    });
+  }
+
+  db.ref("roster-logs").on("child_added", snapshot => renderLog(snapshot));
+  db.ref("roster-logs").on("child_changed", snapshot => renderLog(snapshot, true));
+
+  function renderLog(snapshot, isUpdate = false) {
+    const log = snapshot.val();
+    const liId = "log-" + snapshot.key;
+    let li = document.getElementById(liId);
+
+    if (!li) {
+      li = document.createElement("li");
+      li.id = liId;
+      logsEl.appendChild(li);
+    }
+
+    let text = `${log.rank} ${log.name} (${log.officerId}) → ${log.action}`;
+    if (log.startTime) text += ` | เริ่ม: ${new Date(log.startTime).toLocaleString("th-TH")}`;
+    if (log.endTime) text += ` | เลิก: ${new Date(log.endTime).toLocaleString("th-TH")}`;
+    if (log.duration) text += ` | รวมเวลา: ${log.duration}`;
+
+    li.textContent = text;
+  }
+
+  startBtn.addEventListener("click", startDuty);
+  endBtn.addEventListener("click", endDuty);
+</script>
