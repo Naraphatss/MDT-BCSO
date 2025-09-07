@@ -1,20 +1,14 @@
-<div class="login-container" style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif; background-color: #f9f9f9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center;">
-
-  <!-- Logo -->
-  <img src="https://cdn-icons-png.flaticon.com/512/1055/1055646.png" alt="Computer Logo" style="width: 80px; margin-bottom: 10px;">
-
-  <h1 style="color: #333;">ยินดีต้อนรับเจ้าหน้าที่</h1>
+<div class="login-container">
+  <h1>ยินดีต้อนรับเจ้าหน้าที่</h1>
   
-  <p id="info" style="font-size: 16px; color: #555;"></p>
-  <p id="time" style="font-size: 14px; color: #777;"></p>
+  <p id="info"></p>
+  <p id="time"></p>
 
-  <div style="margin: 20px 0;">
-    <button id="startDuty" style="padding: 10px 20px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer;">🚨 เริ่มงาน</button>
-    <button id="endDuty" disabled style="padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">✅ ออกเวร</button>
-  </div>
+  <button id="startDuty">🚨 เริ่มงาน</button>
+  <button id="endDuty" disabled>✅ ออกเวร</button>
 
-  <h2 style="color: #333;">📜 Duty Logs (Realtime)</h2>
-  <ul id="logs" style="list-style: none; padding: 0; text-align: left; max-height: 300px; overflow-y: auto;"></ul>
+  <h2>📜 Duty Logs (Realtime)</h2>
+  <ul id="logs"></ul>
 </div>
 
 <!-- Firebase SDK -->
@@ -22,6 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+  // 🔧 config จริงของคุณ
   const firebaseConfig = {
     apiKey: "AIzaSyATTiyInUWaiPuGVj7DXzd8SLhJOGmbiq4",
     authDomain: "data-service-467404.firebaseapp.com",
@@ -35,6 +30,7 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  // ข้อมูลเจ้าหน้าที่
   const name = localStorage.getItem("name");
   const rank = localStorage.getItem("rank");
   const officerId = localStorage.getItem("officerId");
@@ -50,8 +46,9 @@
   const endBtn = document.getElementById("endDuty");
 
   let currentSessionKey = null; 
-  let isOnDuty = false;
+  let isOnDuty = false; // ✅ สถานะปฏิบัติหน้าที่
 
+  // เริ่มงาน
   function startDuty() {
     if (isOnDuty) {
       alert("คุณเริ่มงานไปแล้ว กรุณาออกเวรก่อน");
@@ -70,10 +67,12 @@
     currentSessionKey = ref.key;
     isOnDuty = true;
 
+    // ปิดปุ่มเริ่ม / เปิดปุ่มออกเวร
     startBtn.disabled = true;
     endBtn.disabled = false;
   }
 
+  // ออกเวร
   function endDuty() {
     if (!isOnDuty || !currentSessionKey) {
       alert("ยังไม่ได้เริ่มงาน");
@@ -86,6 +85,7 @@
       if (data && data.startTime) {
         const durationMs = new Date(endTime) - new Date(data.startTime);
 
+        // คำนวณเวลารวม
         const hours = Math.floor(durationMs / 1000 / 60 / 60);
         const minutes = Math.floor((durationMs / 1000 / 60) % 60);
         const seconds = Math.floor((durationMs / 1000) % 60);
@@ -101,12 +101,14 @@
         currentSessionKey = null;
         isOnDuty = false;
 
+        // เปิดปุ่มเริ่ม / ปิดปุ่มออกเวร
         startBtn.disabled = false;
         endBtn.disabled = true;
       }
     });
   }
 
+  // แสดง logs Realtime
   db.ref("roster-logs").on("child_added", snapshot => renderLog(snapshot));
   db.ref("roster-logs").on("child_changed", snapshot => renderLog(snapshot, true));
 
@@ -122,13 +124,20 @@
     }
 
     let text = `${log.rank} ${log.name} (${log.officerId}) → ${log.action}`;
-    if (log.startTime) text += ` | เริ่ม: ${new Date(log.startTime).toLocaleString("th-TH")}`;
-    if (log.endTime) text += ` | เลิก: ${new Date(log.endTime).toLocaleString("th-TH")}`;
-    if (log.duration) text += ` | รวมเวลา: ${log.duration}`;
+    if (log.startTime) {
+      text += ` | เริ่ม: ${new Date(log.startTime).toLocaleString("th-TH")}`;
+    }
+    if (log.endTime) {
+      text += ` | เลิก: ${new Date(log.endTime).toLocaleString("th-TH")}`;
+    }
+    if (log.duration) {
+      text += ` | รวมเวลา: ${log.duration}`;
+    }
 
     li.textContent = text;
   }
 
+  // Event ปุ่ม
   startBtn.addEventListener("click", startDuty);
   endBtn.addEventListener("click", endDuty);
 </script>
