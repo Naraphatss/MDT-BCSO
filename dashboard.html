@@ -1,15 +1,160 @@
-<div class="login-container">
-  <h1>ยินดีต้อนรับเจ้าหน้าที่</h1>
   
-  <p id="info"></p>
-  <p id="time"></p>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Law Enforcement - Dashboard</title>
+  <style>
+    /* Reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-  <button id="startDuty">🚨 เริ่มงาน</button>
-  <button id="endDuty" disabled>✅ ออกเวร</button>
+    html, body {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+    }
 
-  <h2>📜 Duty Logs (Realtime)</h2>
-  <ul id="logs"></ul>
-</div>
+    /* Flex layout แบบเต็มจอ */
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: rgba(0,0,0,0.6);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      padding: 20px;
+      gap: 20px;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 250px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .sidebar button {
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+      color: #fff;
+    }
+
+    #startDuty { background-color: #ef4444; }
+    #endDuty { background-color: #10b981; }
+
+    .sidebar button:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      background: rgba(255,255,255,0.95);
+      color: #333;
+      border-radius: 20px;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    #logs {
+      list-style: none;
+      max-height: 100%;
+      overflow-y: auto;
+      padding-left: 0;
+    }
+
+    #logs li {
+      background: #f3f4f6;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: #1f2937;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #logs::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #logs::-webkit-scrollbar-track {
+      background: #e5e7eb;
+      border-radius: 10px;
+    }
+
+    #logs::-webkit-scrollbar-thumb {
+      background: #9ca3af;
+      border-radius: 10px;
+    }
+
+    footer {
+      padding: 10px 30px;
+      text-align: center;
+      background-color: rgba(0,0,0,0.5);
+    }
+
+    .officer-info {
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- เพิ่มไฟล์เสียง -->
+  <audio id="clickSound" src="click.mp3" preload="auto"></audio>
+
+  <header>
+    <h1>🚓 Dashboard เจ้าหน้าที่</h1>
+    <div id="time">เวลาเข้าใช้งาน: --:--</div>
+  </header>
+
+  <main>
+    <div class="sidebar">
+      <div class="officer-info" id="info">ชื่อเจ้าหน้าที่</div>
+      <button id="startDuty">🚨 เริ่มงาน</button>
+      <button id="endDuty" disabled>✅ ออกเวร</button>
+    </div>
+
+    <div class="content">
+      <h2>📜 Duty Logs (Realtime)</h2>
+      <ul id="logs"></ul>
+    </div>
+  </main>
+
+  <footer>
+    ระบบจัดการเจ้าหน้าที่ © 2025
+  </footer>
+</body>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -35,6 +180,7 @@
   const rank = localStorage.getItem("rank");
   const officerId = localStorage.getItem("officerId");
   const loginTime = localStorage.getItem("loginTime");
+  const clickSound = document.getElementById("clickSound");
 
   if(name && officerId) {
     document.getElementById("info").textContent = `${rank} ${name} | เลขประจำตัว: ${officerId}`;
@@ -48,62 +194,106 @@
   let currentSessionKey = null; 
   let isOnDuty = false; // ✅ สถานะปฏิบัติหน้าที่
 
-  // เริ่มงาน
-  function startDuty() {
-    if (isOnDuty) {
-      alert("คุณเริ่มงานไปแล้ว กรุณาออกเวรก่อน");
-      return;
-    }
 
-    const startTime = new Date().toISOString();
-    const logData = {
-      officerId,
-      name,
-      rank,
-      action: "เริ่มปฏิบัติหน้าที่ 🚨",
-      startTime: startTime
-    };
-    const ref = db.ref("roster-logs").push(logData);
-    currentSessionKey = ref.key;
+// โหลดสถานะปัจจุบันเมื่อเข้าเว็บ
+window.addEventListener("load", () => {
+  // ตรวจสอบว่ามี session ที่ยังไม่ได้ออกเวรใน LocalStorage
+  const savedSessionKey = localStorage.getItem("currentSessionKey");
+  const savedIsOnDuty = localStorage.getItem("isOnDuty") === "true";
+
+  if (savedSessionKey && savedIsOnDuty) {
+    currentSessionKey = savedSessionKey;
     isOnDuty = true;
-
-    // ปิดปุ่มเริ่ม / เปิดปุ่มออกเวร
     startBtn.disabled = true;
     endBtn.disabled = false;
+  } else {
+    startBtn.disabled = false;
+    endBtn.disabled = true;
+  }
+
+  // ถ้ามี session ใน Firebase ที่ยังไม่ได้ออกเวร ให้ซิงก์สถานะด้วย
+  db.ref("roster-logs").orderByChild("officerId").equalTo(officerId)
+    .limitToLast(1)
+    .once("value", snapshot => {
+      snapshot.forEach(child => {
+        const log = child.val();
+        if (log && !log.endTime) {
+          currentSessionKey = child.key;
+          isOnDuty = true;
+          startBtn.disabled = true;
+          endBtn.disabled = false;
+
+          // อัพเดต LocalStorage
+          localStorage.setItem("currentSessionKey", currentSessionKey);
+          localStorage.setItem("isOnDuty", "true");
+        }
+      });
+    });
+});
+
+
+  // เริ่มงาน
+function startDuty() {
+  clickSound.play(); // 🔊 เล่นเสียง
+  if (isOnDuty) {
+    alert("คุณเริ่มงานไปแล้ว กรุณาออกเวรก่อน");
+    return;
+  }
+
+  const startTime = new Date().toISOString();
+  const logData = {
+    officerId,
+    name,
+    rank,
+    action: "เริ่มปฏิบัติหน้าที่ 🚨",
+    startTime: startTime
+  };
+  const ref = db.ref("roster-logs").push(logData);
+  currentSessionKey = ref.key;
+  isOnDuty = true;
+
+  // อัพเดต LocalStorage
+  localStorage.setItem("currentSessionKey", currentSessionKey);
+  localStorage.setItem("isOnDuty", "true");
+
+  startBtn.disabled = true;
+  endBtn.disabled = false;
   }
 
   // ออกเวร
-  function endDuty() {
-    if (!isOnDuty || !currentSessionKey) {
-      alert("ยังไม่ได้เริ่มงาน");
-      return;
-    }
+function endDuty() {
+  clickSound.play(); // 🔊 เล่นเสียง
+  if (!isOnDuty || !currentSessionKey) {
+    alert("ยังไม่ได้เริ่มงาน");
+    return;
+  }
 
-    const endTime = new Date().toISOString();
-    db.ref("roster-logs/" + currentSessionKey).once("value", snapshot => {
-      const data = snapshot.val();
-      if (data && data.startTime) {
-        const durationMs = new Date(endTime) - new Date(data.startTime);
+  const endTime = new Date().toISOString();
+  db.ref("roster-logs/" + currentSessionKey).once("value", snapshot => {
+    const data = snapshot.val();
+    if (data && data.startTime) {
+      const durationMs = new Date(endTime) - new Date(data.startTime);
 
-        // คำนวณเวลารวม
-        const hours = Math.floor(durationMs / 1000 / 60 / 60);
-        const minutes = Math.floor((durationMs / 1000 / 60) % 60);
-        const seconds = Math.floor((durationMs / 1000) % 60);
+      const hours = Math.floor(durationMs / 1000 / 60 / 60);
+      const minutes = Math.floor((durationMs / 1000 / 60) % 60);
+      const seconds = Math.floor((durationMs / 1000) % 60);
+      const durationStr = `${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที`;
 
-        const durationStr = `${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที`;
+      db.ref("roster-logs/" + currentSessionKey).update({
+        action: "ออกเวร ✅",
+        endTime: endTime,
+        duration: durationStr
+      });
 
-        db.ref("roster-logs/" + currentSessionKey).update({
-          action: "ออกเวร ✅",
-          endTime: endTime,
-          duration: durationStr
-        });
+      currentSessionKey = null;
+      isOnDuty = false;
 
-        currentSessionKey = null;
-        isOnDuty = false;
+      // ลบ LocalStorage
+      localStorage.removeItem("currentSessionKey");
+      localStorage.removeItem("isOnDuty");
 
-        // เปิดปุ่มเริ่ม / ปิดปุ่มออกเวร
-        startBtn.disabled = false;
-        endBtn.disabled = true;
+      startBtn.disabled = false;
+      endBtn.disabled = true;
       }
     });
   }
@@ -141,3 +331,5 @@
   startBtn.addEventListener("click", startDuty);
   endBtn.addEventListener("click", endDuty);
 </script>
+</body>
+</html>
